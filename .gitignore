@@ -1,0 +1,6 @@
+*.json
+.idea/
+
+!.gitignore
+!addr_info.json
+!addresses.json

@@ -1,0 +1,15 @@
+{
+  "BTC":{
+    "API":"http://btc.blockr.io/api/v1/address/info/",
+    "DATA_KEY":["data"],
+    "BALANCE_KEY":["balance"],
+    "MULTI_ASSET":false
+  },
+  "XCP":{
+    "API":"http://xcp.blockscan.com/api2?module=address&action=balance&btc_address=",
+    "DATA_KEY":["data"],
+    "ASSET_NAME_KEY":["asset"],
+    "BALANCE_KEY":["balance"],
+    "MULTI_ASSET":true
+  }
+}
