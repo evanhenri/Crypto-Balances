@@ -70,6 +70,16 @@ def add_new_addr(addr_type, new_addr_lst):
     addr_data[addr_type] = addr_lst
     json_to_file(addr_file_path, addr_data)
 
+def remove_old_addr(addr_type, rm_addr_lst):
+    addr_type = addr_type.upper()
+    addr_data = json_from_file(addr_file_path)
+    if addr_type not in addr_data:
+        print('Invalid address type {0}'.format(addr_type))
+        return
+    addr_lst = list(filter(lambda x: x not in rm_addr_lst, addr_data[addr_type]))
+    addr_data[addr_type] = addr_lst
+    json_to_file(addr_file_path, addr_data)
+
 def rev_eval(var):
     """
     Returns variable name of var as string
@@ -181,6 +191,8 @@ def main():
 
     if args.add:
         add_new_addr(args.add[0], args.add[1:])
+    if args.remove:
+        remove_old_addr(args.remove[0], args.remove[1:])
 
     addresses = {}
 
@@ -246,7 +258,6 @@ if __name__ == '__main__':
 """
 todo
 
-create option to remove addresses
 make api calls threaded to reduce wait time
 
 """
