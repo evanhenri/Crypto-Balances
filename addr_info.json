@@ -1,15 +1,18 @@
 {
   "BTC":{
-    "API":"http://btc.blockr.io/api/v1/address/info/",
+    "API":"http://btc.blockr.io/api/v1/address/balance/",
     "DATA_KEY":["data"],
+    "ID_KEY":["address"],
     "BALANCE_KEY":["balance"],
-    "MULTI_ASSET":false
+    "MULTI_ASSET_FLAG":false,
+    "MULTI_REQUEST_FLAG_MAX":[true, 19]
   },
   "XCP":{
     "API":"http://xcp.blockscan.com/api2?module=address&action=balance&btc_address=",
     "DATA_KEY":["data"],
-    "ASSET_NAME_KEY":["asset"],
+    "ID_KEY":["asset"],
     "BALANCE_KEY":["balance"],
-    "MULTI_ASSET":true
+    "MULTI_ASSET_FLAG":true,
+    "MULTI_REQUEST_FLAG_MAX":[false, 0]
   }
 }
