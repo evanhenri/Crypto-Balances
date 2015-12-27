@@ -81,7 +81,7 @@ def api_data_request(api_base, addr, results_queue):
     url = api_base + addr
     try:
         resp = requests.get(url).text
-        results_queue.put(json.loads(resp))
+        results_queue.put([addr, json.loads(resp)])
     except Exception as e:
         print('Error occurred while requesting {0}'.format(url), e.args)
 
@@ -136,6 +136,14 @@ def remove_old_addr(addr_type, rm_addr_lst):
     addr_data[addr_type] = addr_lst
     json_to_file(addr_file_path, addr_data)
 
+def update_final_balances(address, address_type, balance, final_balances={}):
+    if address in final_balances:
+        # include the type of the address and its balance in the existing address value list
+        final_balances[address].append({address_type:balance})
+    else:
+        # create new list to associate with address where the type and balance is the first entry
+        final_balances[address] = [{address_type:balance}]
+
 def min_args(nmin):
     """
     verifies that a minimum of nmin arguements have been entered if cooresponding argument flag has been entered
@@ -152,24 +160,25 @@ def print_address_balances(address_balances):
     """
     prints formatted asset balances for each address
     """
-    width = None
+    line_width = None
+    # find length of longest {asset:formatted balance} pair
     for addr, asset_lst in address_balances.items():
-        for asset_info in asset_lst:
-            for asset, balance in asset_info.items():
-                asset_info[asset] = '{0:,.8f}'.format(float(balance))
+        for asset_balance_pair in asset_lst:
+            for asset, balance in asset_balance_pair.items():
+                asset_balance_pair[asset] = '{0:,.8f}'.format(float(balance))
                 line_len = len(asset) + len(str(balance))
-                if not width or line_len > width:
-                    width = line_len
+                if not line_width or line_len > line_width:
+                    line_width = line_len
 
+    # print formatted asset balances for each address
     for addr, asset_lst in address_balances.items():
         print(addr)
-        for asset_info in asset_lst:
-            for asset, balance in sorted(asset_info.items()):
+        for asset_balance_pair in asset_lst:
+            for asset, balance in sorted(asset_balance_pair.items()):
                 if not same_char_str(balance, '0', ['.',',']):
                     line_len = len(asset) + len(str(balance))
-                    fill = width - line_len + 15
-                    print('{indent}{asset_name}{fill}{balance}'.format(
-                            indent=' '*3, asset_name=asset, fill='.'*fill, balance=balance))
+                    fill = line_width - line_len + 15
+                    print('{0}{1}{2}{3}'.format(' '*3, asset, '.'*fill, balance))
         print()
 
 def print_total_balances(address_balances):
@@ -177,25 +186,28 @@ def print_total_balances(address_balances):
     sums total for each asset type and prints formatted totals
     """
     total_balances = {}
-    width = None
+    line_width = None
+    # find length of longest {address:formatted balance} pair
+    # and accumulate asset balances into total_balances
     for addr, asset_lst in address_balances.items():
-        for asset_info in asset_lst:
-            for asset, balance in asset_info.items():
-                asset_info[asset] = '{0:,.8f}'.format(float(balance))
+        for asset_balance_pair in asset_lst:
+            for asset, balance in asset_balance_pair.items():
+                asset_balance_pair[asset] = '{0:,.8f}'.format(float(balance))
                 line_len = len(asset) + len(str(balance))
-                if not width or line_len > width:
-                    width = line_len
+                if not line_width or line_len > line_width:
+                    line_width = line_len
                 if asset in total_balances:
                     total_balances[asset] += float(balance)
                 else:
                     total_balances[asset] = float(balance)
 
+    # print formatted asset balance totals
     for asset, balance in sorted(total_balances.items()):
         if not same_char_str(balance, '0', ['.',',']):
             balance = '{0:,.8f}'.format(balance)
             line_len = len(asset) + len(str(balance))
-            fill = width - line_len + 15
-            print('{asset_name}{fill}{balance}'.format(asset_name=asset, fill='.'*fill, balance=balance))
+            fill = line_width - line_len + 15
+            print('{0}{1}{2}'.format(asset,'.'*fill,balance))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -211,69 +223,70 @@ def main():
     if args.remove:
         remove_old_addr(args.remove[0], args.remove[1:])
 
-    address_balances = {}
+    final_balances = {}
 
     addr_file_data = json_from_file(addr_file_path)
     type_data = json_from_file(info_file_path)
     for addr_type, addr_lst in addr_file_data.items():
         api_base = type_data[addr_type]['API']
         resp_data_key = type_data[addr_type]['DATA_KEY']
-        id_key = type_data[addr_type]['IDENTIFIED_KEY']
+        id_key = type_data[addr_type]['ID_KEY']
         balance_key = type_data[addr_type]['BALANCE_KEY']
-        multi_asset_flag = type_data[addr_type]['MULTI_ASSET']
-        multi_req_flag, multi_req_max = type_data[addr_type]['MULTI_REQUEST']
+        multi_asset_flag = type_data[addr_type]['MULTI_ASSET_FLAG']
+        multi_req_flag, multi_req_max = type_data[addr_type]['MULTI_REQUEST_FLAG_MAX']
 
         q = Queue()
-        # if data for multiple addresses can be retrieved in single api request
+
         if multi_req_flag:
-            multi_addr_resp = []
             # split addresses into maximum amount allowed per api request
             addr_chunks = [addr_lst[x:x+multi_req_max] for x in range(0, len(addr_lst), multi_req_max)]
             threads = []
-            for max_api_chunk in addr_chunks:
-                addrs = merge_lst(max_api_chunk, ['', ','])
+            for chunk in addr_chunks:
+                addrs = merge_lst(chunk, ['', ','])
                 threads.append(Thread(target=api_data_request, args=(api_base, addrs, q)))
                 threads[-1].start()
             [t.join() for t in threads]
+
             while not q.empty():
-                resp = q.get()
-                # accumulate addr chunk api responses into multi_addr_resp
-                multi_addr_resp += json_value_by_key(resp, resp_data_key)
-            for addr_resp in multi_addr_resp:
-                addr = json_value_by_key(addr_resp, id_key)
-                balance = json_value_by_key(addr_resp, balance_key)
+                # need to get address from within json reponse to differentiate the balance data,
+                # ignore address in position 0 of [address, response] that is returned from q.get()
+                raw_resp = q.get()[1]
+                response = json_value_by_key(raw_resp, resp_data_key)
+                for address_data in response:
+                    address = json_value_by_key(address_data, id_key)
+                    # blockr api sometime sends more responses than were requested as {'':0}, filter them out
+                    if address != '':
+                        balance = json_value_by_key(address_data, balance_key)
+                        update_final_balances(address, addr_type, balance, final_balances)
 
-                # blockr api sometime sends more addresses in response than were requested
-                # these extra responses have an empty address field, filter them out
-                if addr != '':
-                    if addr in address_balances:
-                        address_balances[addr].append({addr_type:balance})
-                    else:
-                        address_balances[addr] = [{addr_type:balance}]
-
-        # if multi assets are associated with the given address
         elif multi_asset_flag:
             threads = []
             for addr in addr_lst:
                 threads.append(Thread(target=api_data_request, args=(api_base, addr, q)))
                 threads[-1].start()
             [t.join() for t in threads]
-            while not q.empty():
-                resp = q.get()
-                multi_asset_resp = json_value_by_key(resp, resp_data_key)
-                for asset_resp in multi_asset_resp:
-                    asset_name = json_value_by_key(asset_resp, id_key)
-                    balance = json_value_by_key(asset_resp, balance_key)
-                    if addr in address_balances:
-                        address_balances[addr].append({asset_name:balance})
-                    else:
-                        address_balances[addr] = [{asset_name:balance}]
 
-    if len(address_balances) == 0:
+            while not q.empty():
+                address, raw_resp = q.get()
+                response = json_value_by_key(raw_resp, resp_data_key)
+
+                for asset_data in response:
+                    asset_type = json_value_by_key(asset_data, id_key)
+                    balance = json_value_by_key(asset_data, balance_key)
+                    update_final_balances(address, asset_type, balance, final_balances)
+
+    if len(final_balances) == 0:
         print('No addresses have been added')
     elif args.individual:
-        print_address_balances(address_balances)
+        print_address_balances(final_balances)
     else:
-        print_total_balances(address_balances)
+        print_total_balances(final_balances)
+
 if __name__ == '__main__':
     main()
+
+"""
+todo
+
+add option to ignore certain assets from inclusion in totals
+"""
