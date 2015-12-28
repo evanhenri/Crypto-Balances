@@ -9,6 +9,7 @@ from threading import Thread
 dir_path = str(os.path.realpath(__file__)).rsplit('/', 1)[0]
 addr_file_path = dir_path + '/addresses.json'
 info_file_path = dir_path + '/addr_info.json'
+exclusion_file_path = dir_path + '/exclusions.txt'
 
 def merge_lst(lst, delimeters=['', '']):
     """
@@ -48,6 +49,18 @@ def json_from_file(file_path):
     with open(file_path, 'r') as f:
         return json.load(f)
 
+def list_from_file(file_path):
+    """
+    returns a list where each element is the content of a single line in file at file_path
+    """
+    lst = []
+    with open(file_path, 'r') as f:
+        for line in f:
+            stripped_line = line.strip('\r\n')
+            if len(stripped_line) > 0:
+                lst.append(stripped_line)
+    return lst
+
 def json_to_file(file_path, content):
     """
     writes the contents of file at file_path with content
@@ -65,14 +78,19 @@ def json_value_by_key(json_obj, key_lst=[]):
     str_stmt = rev_eval(json_obj) + json_key_path
     return eval(str_stmt)
 
-def verify_files(file_lst=[]):
+def verify_files(file_type_dict={}):
     """
     checks if a file exists at path specified by file_lst index, creates file and writes '{}' to it if not exists
     """
-    for file_path in file_lst:
-        if not os.path.isfile(file_path) or os.stat(file_path).st_size == 0:
-            with open(file_path, 'w') as f:
-                f.write('{}')
+    for file_type, path_lst in file_type_dict.items():
+        for file_path in path_lst:
+            if not os.path.isfile(file_path) or os.stat(file_path).st_size == 0:
+                with open(file_path, 'w') as f:
+                    if file_type == 'json':
+                        # write empty dict to files designated as json if they must be created
+                        f.write('{}')
+                    else:
+                        pass
 
 def api_data_request(api_base, addr, results_queue):
     """
@@ -135,6 +153,15 @@ def remove_old_addr(addr_type, rm_addr_lst):
     addr_lst = list(filter(lambda x: x not in rm_addr_lst, addr_data[addr_type]))
     addr_data[addr_type] = addr_lst
     json_to_file(addr_file_path, addr_data)
+
+def add_to_exlusion_lst(asset_lst):
+    exlusion_lst = [i.upper() for i in list_from_file(exclusion_file_path)]
+    for asset in asset_lst:
+        asset = asset.upper()
+        if asset not in exlusion_lst:
+            exlusion_lst.append(asset)
+    with open(exclusion_file_path, 'w') as f:
+        [f.write(e + '\n') for e in exlusion_lst]
 
 def update_final_balances(address, address_type, balance, final_balances={}):
     if address in final_balances:
@@ -214,20 +241,26 @@ def main():
     parser.add_argument('-a', '--add', nargs='+', action=min_args(2), help='Add addresses for the given type')
     parser.add_argument('-r', '--remove', nargs='+', action=min_args(2), help='Remove addresses for the given type')
     parser.add_argument('-i', '--individual', action='store_true', help='Print individual address balances instead of totals')
+    parser.add_argument('-e', '--exclude', nargs='+', help='Exclude the listed assets from inclusion in final balances')
     args = parser.parse_args()
 
-    verify_files([addr_file_path, info_file_path])
+    verify_files({'json':[addr_file_path, info_file_path],
+                  'txt':[exclusion_file_path]})
 
     if args.add:
         add_new_addr(args.add[0], args.add[1:])
     if args.remove:
         remove_old_addr(args.remove[0], args.remove[1:])
+    if args.exclude:
+        add_to_exlusion_lst(args.exclude)
 
     final_balances = {}
 
-    addr_file_data = json_from_file(addr_file_path)
+    address_data = json_from_file(addr_file_path)
     type_data = json_from_file(info_file_path)
-    for addr_type, addr_lst in addr_file_data.items():
+    exclusion_lst = [i.upper() for i in list_from_file(exclusion_file_path)]
+
+    for addr_type, addr_lst in address_data.items():
         api_base = type_data[addr_type]['API']
         resp_data_key = type_data[addr_type]['DATA_KEY']
         id_key = type_data[addr_type]['ID_KEY']
@@ -238,55 +271,57 @@ def main():
 
         q = Queue()
 
-        if multi_req_flag:
-            # split addresses into maximum amount allowed per api request
-            addr_chunks = [addr_lst[x:x+multi_req_max] for x in range(0, len(addr_lst), multi_req_max)]
-            threads = []
-            for chunk in addr_chunks:
-                addrs = merge_lst(chunk, ['', ','])
-                threads.append(Thread(target=api_data_request, args=(api_base, addrs, q)))
-                threads[-1].start()
-            [t.join() for t in threads]
+        if addr_type.upper() not in exclusion_lst:
+            if multi_req_flag:
+                # split addresses into maximum amount allowed per api request
+                addr_chunks = [addr_lst[x:x+multi_req_max] for x in range(0, len(addr_lst), multi_req_max)]
+                threads = []
+                for chunk in addr_chunks:
+                    addrs = merge_lst(chunk, ['', ','])
+                    threads.append(Thread(target=api_data_request, args=(api_base, addrs, q)))
+                    threads[-1].start()
+                [t.join() for t in threads]
 
-            while not q.empty():
-                # need to get address from within json reponse to differentiate the balance data,
-                # ignore address in position 0 of [address, response] that is returned from q.get()
-                raw_resp = q.get()[1]
-                response = json_value_by_key(raw_resp, resp_data_key)
-                for address_data in response:
-                    address = json_value_by_key(address_data, id_key)
-                    # blockr api sometime sends more responses than were requested as {'':0}, filter them out
-                    if address != '':
-                        balance = json_value_by_key(address_data, balance_key) * multiplier
-                        update_final_balances(address, addr_type, balance, final_balances)
+                while not q.empty():
+                    # need to get address from within json reponse to differentiate the balance data,
+                    # ignore address in position 0 of [address, response] that is returned from q.get()
+                    raw_resp = q.get()[1]
+                    response = json_value_by_key(raw_resp, resp_data_key)
+                    for addr_data in response:
+                        address = json_value_by_key(addr_data, id_key)
+                        # blockr api sometime sends more responses than were requested as {'':0}, filter them out
+                        if address != '':
+                            balance = json_value_by_key(addr_data, balance_key) * multiplier
+                            update_final_balances(address, addr_type, balance, final_balances)
 
-        elif multi_asset_flag:
-            threads = []
-            for addr in addr_lst:
-                threads.append(Thread(target=api_data_request, args=(api_base, addr, q)))
-                threads[-1].start()
-            [t.join() for t in threads]
+            elif multi_asset_flag:
+                threads = []
+                for addr in addr_lst:
+                    threads.append(Thread(target=api_data_request, args=(api_base, addr, q)))
+                    threads[-1].start()
+                [t.join() for t in threads]
 
-            while not q.empty():
-                address, raw_resp = q.get()
-                response = json_value_by_key(raw_resp, resp_data_key)
+                while not q.empty():
+                    address, raw_resp = q.get()
+                    response = json_value_by_key(raw_resp, resp_data_key)
 
-                for asset_data in response:
-                    asset_type = json_value_by_key(asset_data, id_key)
-                    balance = json_value_by_key(asset_data, balance_key) * multiplier
-                    update_final_balances(address, asset_type, balance, final_balances)
-        else:
-            threads = []
-            for addr in addr_lst:
-                threads.append(Thread(target=api_data_request, args=(api_base, addr, q)))
-                threads[-1].start()
-            [t.join() for t in threads]
+                    for asset_data in response:
+                        asset_type = json_value_by_key(asset_data, id_key)
+                        if asset_type.upper() not in exclusion_lst:
+                            balance = json_value_by_key(asset_data, balance_key) * multiplier
+                            update_final_balances(address, asset_type, balance, final_balances)
+            else:
+                threads = []
+                for addr in addr_lst:
+                    threads.append(Thread(target=api_data_request, args=(api_base, addr, q)))
+                    threads[-1].start()
+                [t.join() for t in threads]
 
-            while not q.empty():
-                address, raw_resp = q.get()
-                response = json_value_by_key(raw_resp, resp_data_key)[0]
-                balance = json_value_by_key(response, balance_key) * multiplier
-                update_final_balances(address, addr_type, balance, final_balances)
+                while not q.empty():
+                    address, raw_resp = q.get()
+                    response = json_value_by_key(raw_resp, resp_data_key)[0]
+                    balance = json_value_by_key(response, balance_key) * multiplier
+                    update_final_balances(address, addr_type, balance, final_balances)
 
     if len(final_balances) == 0:
         print('No addresses have been added')
