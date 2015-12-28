@@ -23,4 +23,7 @@ python cryptobalances.py -a xcp 1Co1dcFX6u1wQ8cW8mnj1DEgW7xQMEaChD 1EjnVKygHrwvz
 # Print asset balances for each address individually
 python cryptobalances.py -i
 
+# Add assets to exclusion file so they are not included in final balances
+python cryptobalances.py -e exclusion1 exclusion2 etc
+
 ```
