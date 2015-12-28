@@ -5,7 +5,8 @@
     "ID_KEY":["address"],
     "BALANCE_KEY":["balance"],
     "MULTI_ASSET_FLAG":false,
-    "MULTI_REQUEST_FLAG_MAX":[true, 19]
+    "MULTI_REQUEST_FLAG_MAX":[true, 19],
+    "MULTIPLIER":1
   },
   "XCP":{
     "API":"http://xcp.blockscan.com/api2?module=address&action=balance&btc_address=",
@@ -13,6 +14,16 @@
     "ID_KEY":["asset"],
     "BALANCE_KEY":["balance"],
     "MULTI_ASSET_FLAG":true,
-    "MULTI_REQUEST_FLAG_MAX":[false, 0]
+    "MULTI_REQUEST_FLAG_MAX":[false, 0],
+    "MULTIPLIER":1
+  },
+    "ETH":{
+    "API":"https://etherchain.org/api/account/",
+    "DATA_KEY":["data"],
+    "ID_KEY":["address"],
+    "BALANCE_KEY":["balance"],
+    "MULTI_ASSET_FLAG":false,
+    "MULTI_REQUEST_FLAG_MAX":[false, 0],
+    "MULTIPLIER":0.000000000000000001
   }
 }

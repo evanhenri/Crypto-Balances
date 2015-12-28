@@ -234,6 +234,7 @@ def main():
         balance_key = type_data[addr_type]['BALANCE_KEY']
         multi_asset_flag = type_data[addr_type]['MULTI_ASSET_FLAG']
         multi_req_flag, multi_req_max = type_data[addr_type]['MULTI_REQUEST_FLAG_MAX']
+        multiplier = type_data[addr_type]['MULTIPLIER']
 
         q = Queue()
 
@@ -256,7 +257,7 @@ def main():
                     address = json_value_by_key(address_data, id_key)
                     # blockr api sometime sends more responses than were requested as {'':0}, filter them out
                     if address != '':
-                        balance = json_value_by_key(address_data, balance_key)
+                        balance = json_value_by_key(address_data, balance_key) * multiplier
                         update_final_balances(address, addr_type, balance, final_balances)
 
         elif multi_asset_flag:
@@ -272,8 +273,20 @@ def main():
 
                 for asset_data in response:
                     asset_type = json_value_by_key(asset_data, id_key)
-                    balance = json_value_by_key(asset_data, balance_key)
+                    balance = json_value_by_key(asset_data, balance_key) * multiplier
                     update_final_balances(address, asset_type, balance, final_balances)
+        else:
+            threads = []
+            for addr in addr_lst:
+                threads.append(Thread(target=api_data_request, args=(api_base, addr, q)))
+                threads[-1].start()
+            [t.join() for t in threads]
+
+            while not q.empty():
+                address, raw_resp = q.get()
+                response = json_value_by_key(raw_resp, resp_data_key)[0]
+                balance = json_value_by_key(response, balance_key) * multiplier
+                update_final_balances(address, addr_type, balance, final_balances)
 
     if len(final_balances) == 0:
         print('No addresses have been added')
