@@ -332,9 +332,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
-"""
-todo
-
-add option to ignore certain assets from inclusion in totals
-"""
