@@ -17,58 +17,63 @@ class Portfolio(object):
             for addr in addr_lst:
                 self.addresses[addr] = Address(addr, Family(addr_family))
 
-    def add_address(self, addr, address_obj):
-        self.addresses[addr] = address_obj
+    def add_address(self, addr, addr_obj):
+        self.addresses[addr] = addr_obj
 
     def get_balances(self):
-        self.addresses = dict(filter(lambda x: x[1].family() not in self.exclusion_lst, self.addresses.items()))
+        self.addresses = {k:v for (k,v) in self.addresses.items() if v.family() not in self.exclusion_lst}
         self.multi_request()
         self.multi_asset()
         self.single_asset_single_request()
 
-    def _set_balance(self, _address, _asset_type, _balance):
-        self.addresses[_address].balance[_asset_type] = _balance
+    def update_balance(self, addr, asset_name, asset_balance):
+        if asset_name in self.addresses[addr].asset_balances:
+            self.addresses[addr].asset_balances[asset_name] += asset_balance
+        else:
+            self.addresses[addr].asset_balances[asset_name] = asset_balance
 
     def multi_request(self):
-        q = Queue()
-        addr_lst = list(filter(lambda x: x[1].multi_request_flag, self.addresses.items()))###############################errorr here AttributeError: 'Address' object has no attribute 'multi_request_flag'
-        if len(addr_lst) > 0:
-            max_per_call = addr_lst[0].family.multi_request_max
-            api_base = addr_lst[0].family.api_base
-            data_key = addr_lst[0].family.data_key
-            id_key = addr_lst[0].family.id_key
-            balance_key = addr_lst[0].family.balance_key
-            multiplier = addr_lst[0].family.multiplier
-            addr_chunks = util.chunk_list(addr_lst, max_per_call)
+        multi_request_addresses = {k:v for (k,v) in self.addresses.items() if v.family.multi_request_flag}
+        if len(multi_request_addresses) > 0:
+            record = list(multi_request_addresses.values())[0]
+            max_per_call = record.family.multi_request_max
+            api_base = record.family.api_base
+            data_key = record.family.data_key
+            id_key = record.family.id_key
+            balance_key = record.family.balance_key
+            multiplier = record.family.multiplier
+            addr_lst_chunks = util.chunk_list(list(multi_request_addresses.keys()), max_per_call)
             threads = []
-            for chunk in addr_chunks:
-                addrs = util.merge_lst(chunk, ['', ','])
-                threads.append(Thread(target=util.api_call, args=(api_base, addrs, q)))
+            q = Queue()
+            for addr_lst in addr_lst_chunks:
+                addr_payload = util.merge_lst(addr_lst, ['', ','])
+                threads.append(Thread(target=util.api_call, args=(api_base, addr_payload, q)))
                 threads[-1].start()
             [t.join() for t in threads]
             while not q.empty():
                 # need to get address from within json reponse to differentiate the balance data,
                 # ignore address in position 0 of [address, response] that is returned from q.get()
                 raw_resp = q.get()[1]
-                resp = util.json_value_by_key(raw_resp, data_key)
-                for addr_data in resp:
+                resp_data = util.json_value_by_key(raw_resp, data_key)
+                for addr_data in resp_data:
                     addr = util.json_value_by_key(addr_data, id_key)
                     # blockr api sometime sends more responses than were requested as {'':0}, filter them out
                     if addr != '':
                         balance = util.json_value_by_key(addr_data, balance_key) * multiplier
-                        self._set_balance(addr, self.addresses[addr].family(), balance)
+                        self.update_balance(addr, self.addresses[addr].family(), balance)
 
     def multi_asset(self):
-        q = Queue()
-        addr_lst = list(filter(lambda x: x[1].multi_asset_flag, self.addresses.items()))
-        if len(addr_lst) > 0:
-            api_base = addr_lst[0].family.api_base
-            data_key = addr_lst[0].family.data_key
-            id_key = addr_lst[0].family.id_key
-            balance_key = addr_lst[0].family.balance_key
-            multiplier = addr_lst[0].family.multiplier
+        multi_asset_addresses = {k:v for (k, v) in self.addresses.items() if v.family.multi_asset_flag}
+        if len(multi_asset_addresses) > 0:
+            record = list(multi_asset_addresses.values())[0]
+            api_base = record.family.api_base
+            data_key = record.family.data_key
+            id_key = record.family.id_key
+            balance_key = record.family.balance_key
+            multiplier = record.family.multiplier
             threads = []
-            for addr in addr_lst:
+            q = Queue()
+            for addr in multi_asset_addresses.keys():
                 threads.append(Thread(target=util.api_call, args=(api_base, addr, q)))
                 threads[-1].start()
             [t.join() for t in threads]
@@ -81,18 +86,19 @@ class Portfolio(object):
                     asset_type = util.json_value_by_key(asset_data, id_key)
                     if asset_type.upper() not in self.exclusion_lst:
                         balance = util.json_value_by_key(asset_data, balance_key) * multiplier
-                        self._set_balance(addr, asset_type, balance)
+                        self.update_balance(addr, asset_type, balance)
 
     def single_asset_single_request(self):
-        q = Queue()
-        addr_lst = list(filter(lambda x: not all([x[1].multi_request_flag, x[1].multi_asset_flag]), self.addresses.items()))
-        if len(addr_lst) > 0:
-            api_base = addr_lst[0].family.api_base
-            data_key = addr_lst[0].family.data_key
-            balance_key = addr_lst[0].family.balance_key
-            multiplier = addr_lst[0].family.multiplier
+        single_asset_addresses = {k:v for (k, v) in self.addresses.items() if v.family.single_asset_single_request}
+        if len(single_asset_addresses) > 0:
+            record = list(single_asset_addresses.values())[0]
+            api_base = record.family.api_base
+            data_key = record.family.data_key
+            balance_key = record.family.balance_key
+            multiplier = record.family.multiplier
             threads = []
-            for addr in addr_lst:
+            q = Queue()
+            for addr in single_asset_addresses.keys():
                 threads.append(Thread(target=util.api_call, args=(api_base, addr, q)))
                 threads[-1].start()
             [t.join() for t in threads]
@@ -101,7 +107,27 @@ class Portfolio(object):
                 addr, raw_resp = q.get()
                 resp = util.json_value_by_key(raw_resp, data_key)[0]
                 balance = util.json_value_by_key(resp, balance_key) * multiplier
-                self._set_balance(addr, self.addresses[addr].family(), balance)
+                self.update_balance(addr, self.addresses[addr].family(), balance)
+
+    def print_address_balances(self):
+        for addr, addr_obj in self.addresses.items():
+            print(addr)
+            for asset, balance in addr_obj.asset_balances.items():
+                if asset not in self.exclusion_lst:
+                    print('{0}\t{1}'.format(asset, balance))
+            print()
+
+    def print_total_balances(self):
+        asset_totals = {}
+        for addr_obj in self.addresses.values():
+            for asset, balance in addr_obj.asset_balances.items():
+                if asset not in self.exclusion_lst:
+                    if asset in asset_totals:
+                        asset_totals[asset] += float(balance)
+                    else:
+                        asset_totals[asset] = float(balance)
+        for asset, balance in asset_totals.items():
+            print('{0}\t{1}'.format(asset, balance))
 
 
 

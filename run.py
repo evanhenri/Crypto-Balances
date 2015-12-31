@@ -89,20 +89,29 @@ def main():
     balance_value_denomination = args.denomination[0]
 
     P = portfolio.Portfolio()
-    P.get_balances() ## error occuring in address.py ln 34
+    P.get_balances()
 
     if len(P.addresses) == 0:
         print('No addresses have been added')
     elif args.individual:
-        for k,v in P.addresses.items():
-            print(k)
-
-        #print_address_balances(final_balances)
+        P.print_address_balances()
     else:
-        for k,v in P.addresses.items():
-            print(k)
-
-        #print_total_balances(final_balances)
+        P.print_total_balances()
 
 if __name__ == '__main__':
     main()
+
+"""
+
+KNOWN BUGS
+Sometimes only balances for multiasset addresses are retrieved and other times only
+multi request addresses are retrieved, but never both as should be happening
+- appears to be caused by multithreaded requests to api's for asset info
+
+TO DO
+necessary to have address variable for Address objects if that is the key for each Address in portfolio.addresses ?
+
+add functionality to get exchange value for each asset with option to denominate that value in the currency specified
+by the user
+
+"""
