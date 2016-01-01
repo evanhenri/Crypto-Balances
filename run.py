@@ -1,9 +1,6 @@
 import argparse
 
-from src.address import Address, Family
-from src import config
-from src import portfolio
-from src import util
+from src import config, util, portfolio
 
 def min_args(nmin):
     """
@@ -88,10 +85,13 @@ def main():
         config.add_to_exlusion_lst(args.exclude)
     balance_value_denomination = args.denomination[0]
 
-    P = portfolio.Portfolio()
-    P.get_balances()
+    addr_dict = util.json_from_file(config.address_file)
+    exclusion_lst = util.list_from_file(config.exclusions_file)
+    P = portfolio.Portfolio(addr_dict, exclusion_lst)
 
-    if len(P.addresses) == 0:
+    addresses_exist = any([P.multi_asset_addresses, P.group_request_addresses, P.standard_addresses])
+
+    if not addresses_exist:
         print('No addresses have been added')
     elif args.individual:
         P.print_address_balances()
@@ -104,14 +104,14 @@ if __name__ == '__main__':
 """
 
 KNOWN BUGS
-Sometimes only balances for multiasset addresses are retrieved and other times only
-multi request addresses are retrieved, but never both as should be happening
-- appears to be caused by multithreaded requests to api's for asset info
+Some addresses that have xcp assets are not printing those assets, they are only printing btc balances
 
 TO DO
 necessary to have address variable for Address objects if that is the key for each Address in portfolio.addresses ?
 
 add functionality to get exchange value for each asset with option to denominate that value in the currency specified
 by the user
+
+change config file so that absolute paths to json values can be used
 
 """
