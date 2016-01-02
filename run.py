@@ -1,9 +1,6 @@
 import argparse
 
-from src.address import Address, Family
-from src import config
-from src import portfolio
-from src import util
+from src import config, util, portfolio
 
 def min_args(nmin):
     """
@@ -16,60 +13,6 @@ def min_args(nmin):
                 raise argparse.ArgumentTypeError(msg)
             setattr(args, self.dest, values)
     return RequiredLength
-
-def print_address_balances(address_balances):
-    """
-    prints formatted asset balances for each address
-    """
-    line_width = None
-    # find length of longest {asset:formatted balance} pair
-    for addr, asset_lst in address_balances.items():
-        for asset_balance_pair in asset_lst:
-            for asset, balance in asset_balance_pair.items():
-                asset_balance_pair[asset] = '{0:,.8f}'.format(float(balance))
-                line_len = len(asset) + len(str(balance))
-                if not line_width or line_len > line_width:
-                    line_width = line_len
-
-    # print formatted asset balances for each address
-    for addr, asset_lst in address_balances.items():
-        print(addr)
-        for asset_balance_pair in asset_lst:
-            for asset, balance in sorted(asset_balance_pair.items()):
-                if not util.same_char_str(balance, '0', ['.', ',']):
-                    line_len = len(asset) + len(str(balance))
-                    fill = line_width - line_len + 15
-                    print('{0}{1}{2}{3}'.format(' '*3, asset, '.'*fill, balance))
-        print()
-
-def print_total_balances(address_balances):
-    """
-    sums total for each asset type and prints formatted totals
-    """
-    total_balances = {}
-    line_width = None
-    # find length of longest {address:formatted balance} pair
-    # and accumulate asset balances into total_balances
-    for addr, asset_lst in address_balances.items():
-        for asset_balance_pair in asset_lst:
-            for asset, balance in asset_balance_pair.items():
-                asset_balance_pair[asset] = '{0:,.8f}'.format(float(balance))
-                line_len = len(asset) + len(str(balance))
-                if not line_width or line_len > line_width:
-                    line_width = line_len
-                if asset in total_balances:
-                    total_balances[asset] += float(balance)
-                else:
-                    total_balances[asset] = float(balance)
-
-    # print formatted asset balance totals
-    for asset, balance in sorted(total_balances.items()):
-        if not util.same_char_str(balance, '0', ['.', ',']):
-            balance = '{0:,.8f}'.format(balance)
-            line_len = len(asset) + len(str(balance))
-            fill = line_width - line_len + 15
-            print('{0}{1}{2}'.format(asset,'.'*fill,balance))
-
 
 def main():
     parser = argparse.ArgumentParser()
@@ -88,21 +31,29 @@ def main():
         config.add_to_exlusion_lst(args.exclude)
     balance_value_denomination = args.denomination[0]
 
-    P = portfolio.Portfolio()
-    P.get_balances() ## error occuring in address.py ln 34
+    address_dict = util.json_from_file(config.address_file)
+    address_config = util.json_from_file(config.address_config_file)
+    exclusion_lst = util.list_from_file(config.exclusions_file)
+    P = portfolio.Portfolio(address_dict, address_config, exclusion_lst)
 
-    if len(P.addresses) == 0:
+    if P.isempty():
         print('No addresses have been added')
     elif args.individual:
-        for k,v in P.addresses.items():
-            print(k)
-
-        #print_address_balances(final_balances)
+        P.print_address_balances()
     else:
-        for k,v in P.addresses.items():
-            print(k)
-
-        #print_total_balances(final_balances)
+        P.print_total_balances()
 
 if __name__ == '__main__':
     main()
+
+"""
+
+KNOWN BUGS
+
+TO DO
+add functionality to get exchange value for each asset with option to denominate that value in the currency specified
+by the user
+
+change config file so that absolute paths to json values can be used
+
+"""

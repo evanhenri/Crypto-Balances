@@ -5,7 +5,7 @@
     "ID_KEY":["address"],
     "BALANCE_KEY":["balance"],
     "MULTI_ASSET_FLAG":false,
-    "MULTI_REQUEST_FLAG_MAX":[true, 19],
+    "MULTI_REQUEST_FLAG_MAX":[true, 15],
     "MULTIPLIER":1
   },
   "XCP":{

@@ -64,6 +64,14 @@ def list_from_file(file_path):
                 lst.append(stripped_line)
     return lst
 
+def longest_kv_length(dictionary):
+    longest_len = 0
+    for k,v in dictionary.items():
+        kv_length = len('{0}{1}'.format(k,v))
+        if kv_length > longest_len:
+            longest_len = kv_length
+    return longest_len
+
 def chunk_list(lst, chunk_size):
     return [lst[x : x+chunk_size] for x in range(0, len(lst), chunk_size)]
 
