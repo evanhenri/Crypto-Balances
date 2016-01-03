@@ -5,26 +5,26 @@ import requests
 __all__ = ['api_call', 'api_test_call', 'json_from_file', 'json_to_file', 'json_value_by_key',
            'list_from_file', 'make_list_chunks', 'merge_lst', 'rev_eval', 'same_char_str']
 
-def api_call(api_base, addr, results_queue):
+def api_call(api_base, api_path, results_queue):
     """
     puts json response from api request to api_base + addr into results queue
     """
-    url = api_base + addr
+    url = api_base + api_path
     try:
         resp = requests.get(url).text
-        results_queue.put([addr, json.loads(resp)])
+        results_queue.put([api_path, json.loads(resp)])
     except Exception as e:
         print('Error occurred while requesting {0}'.format(url), e.args)
 
-def api_test_call(api_base, address, results_queue):
+def api_test_call(api_base, api_path, results_queue):
     """
     puts address into results_queue if valid response received from request to api_base + address
     """
-    url = api_base + address
+    url = api_base + api_path
     try:
         resp = requests.get(url)
         if resp.status_code == 200:
-            results_queue.put(address)
+            results_queue.put(api_path)
     except Exception as e:
         print('Error occurred while requesting {0}'.format(url), e.args)
 
