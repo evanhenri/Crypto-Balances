@@ -31,7 +31,7 @@ def main():
         config.remove_old_addr(args.remove[0], args.remove[1:])
     if args.exclude:
         config.add_to_exlusion_lst(args.exclude)
-    base_currency = args.base_currency[0]
+    base_currency = args.base[0]
     min_balance = args.minimum[0]
     precision = args.precision[0]
 
@@ -41,13 +41,14 @@ def main():
 
     P = portfolio.Portfolio(address_dict, address_config, exclusion_lst)
     P.filter_addr_assets(min_balance)
+    P.get_asset_prices(base_currency)
 
     if P.isempty():
         print('No addresses have been added')
     elif args.individual:
-        P.print_address_balances()
+        P.print_address_balances(min_balance, precision) # remove min balance as arg since assets already filtered in line 43
     else:
-        P.print_total_balances()
+        P.print_total_balances(min_balance, precision)
 
 if __name__ == '__main__':
     main()
