@@ -20,7 +20,9 @@ def main():
     parser.add_argument('-r', '--remove', nargs='+', action=min_args(2), help='Remove addresses for the given type')
     parser.add_argument('-i', '--individual', action='store_true', help='Print individual address balances instead of totals')
     parser.add_argument('-e', '--exclude', nargs='+', help='Exclude the listed assets from inclusion in final balances')
-    parser.add_argument('-d', '--denomination', nargs=1, default=['btc'], help='Set denomination for balances')
+    parser.add_argument('-b', '--base', nargs=1, default=['btc'], help='Base currency for asset values')
+    parser.add_argument('-m', '--minimum', nargs=1, default=[0], help='Minimum balance for displayed asset balances')
+    parser.add_argument('-p', '--precision', nargs=1, default=[8], help='Number of digits beyond decimal point to be shown')
     args = parser.parse_args()
 
     if args.add:
@@ -29,12 +31,16 @@ def main():
         config.remove_old_addr(args.remove[0], args.remove[1:])
     if args.exclude:
         config.add_to_exlusion_lst(args.exclude)
-    balance_value_denomination = args.denomination[0]
+    base_currency = args.base_currency[0]
+    min_balance = args.minimum[0]
+    precision = args.precision[0]
 
     address_dict = util.json_from_file(config.address_file)
     address_config = util.json_from_file(config.address_config_file)
     exclusion_lst = util.list_from_file(config.exclusions_file)
+
     P = portfolio.Portfolio(address_dict, address_config, exclusion_lst)
+    P.filter_addr_assets(min_balance)
 
     if P.isempty():
         print('No addresses have been added')
