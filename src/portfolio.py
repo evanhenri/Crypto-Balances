@@ -49,19 +49,20 @@ class Portfolio(object):
                 self.standard_request(Fam)
 
     def filter_addr_assets(self, min_balance):
+        """
+        fills self.filtered_addr_assets with {address:{asset_name:asset_obj, }, }
+            if assets not in exclusion list, asset balance > 0, and if address has associated assets after filtering
+        """
+        filtered_addr_assets = {}
         for address, asset_data in self.addr_assets.items():
-            self.filtered_addr_assets[address] = {}
+            filtered_addr_assets[address] = {}
             for asset_name, asset_obj in asset_data.items():
                 if asset_name not in self.exclusion_lst and asset_obj.balance > min_balance:
-                    self.filtered_addr_assets[address][asset_name] = asset_obj
+                    filtered_addr_assets[address][asset_name] = asset_obj
                     self.unique_assets.add(asset_name)
-
-    def get_asset_prices(self, base_currency):
-        base_currency = base_currency.upper()
-        AP = asset.Prices()
-        for asset_name in self.unique_assets:
-            price = AP.get(asset_name, base_currency)
-            self.asset_prices[asset_name] = price
+        for address, asset_data in filtered_addr_assets.items():
+            if len(filtered_addr_assets[address]) > 0:
+                self.filtered_addr_assets[address] = asset_data
 
     def get_asset_totals(self):
         """
@@ -78,7 +79,7 @@ class Portfolio(object):
 
     def group_request(self, F):
         """
-        for addresses where the specified api allows multiple addresses included in single api call
+        multithreaded api requests for addresses where the specified api allows multiple addresses grouped into one api call
         """
         q = Queue()
         threads = []
@@ -104,11 +105,14 @@ class Portfolio(object):
                     self.update_balance(addr, asset_name, asset_balance)
 
     def isempty(self):
+        """
+        returns true if self.addr_families is empty
+        """
         return len(self.addr_families) == 0
 
     def multi_asset_request(self, F):
         """
-        for addresses that have multiple assets associated with each address e.g. Counterparty
+        multithreaded api requests for addresses that have multiple assets associated with each address e.g. Counterparty
         """
         q = Queue()
         threads = []
@@ -124,9 +128,19 @@ class Portfolio(object):
                 asset_balance = util.json_value_by_key(asset_data, F.balance_key) * F.multiplier
                 self.update_balance(addr, asset_name, asset_balance)
 
+    def retrieve_asset_prices(self, base_currency):
+        """
+        initializes asset.Prices() objects and initilizes self.asset_prices with {asset_name:btc_denominated_price}
+        """
+        base_currency = base_currency.upper()
+        AP = asset.Prices()
+        for asset_name in self.unique_assets:
+            price = AP.get(asset_name, base_currency)
+            self.asset_prices[asset_name] = price
+
     def standard_request(self, F):
         """
-        for addresses that have a single asset and whose api has limit of one address per call
+        multithreaded api requests for addresses that have a single asset and whose api has limit of one address per call
         """
         q = Queue()
         threads = []
@@ -142,6 +156,10 @@ class Portfolio(object):
             self.update_balance(addr, asset_name, asset_balance)
 
     def update_balance(self, addr, asset_name, asset_balance):
+        """
+        updates self.addr_assets[addr][asset_name] with asset_balance or creates asset_name for addr
+        with value asset_balance if it does not exist
+        """
         asset_balance = Decimal(asset_balance)
         if asset_name in self.addr_assets[addr]:
             self.addr_assets[addr][asset_name].balance += asset_balance
@@ -150,7 +168,7 @@ class Portfolio(object):
 
     def print_address_balances(self, asset_prec_digits, value_prec_digits):
         """
-        prints individual asset balances for each individual address
+        prints itemized asset balances for each address
         """
         asset_prec = '1.{0}'.format('0'*asset_prec_digits)
         value_prec = '1.{0}'.format('0'*value_prec_digits)
@@ -163,34 +181,50 @@ class Portfolio(object):
                 asset_obj.balance = asset_obj.balance.quantize(Decimal(asset_prec))
                 fmt_addr_assets[addr][asset_name] = asset_obj
 
-                width = len('{0}{1}'.format(asset_name, str(asset_obj.balance)))
+                width = len('{0}{1}'.format(asset_name, asset_obj.balance))
                 if width > longest_width:
                     longest_width = width
 
         for addr, asset_data in fmt_addr_assets.items():
-            if len(fmt_addr_assets[addr]) > 0:
-                print(addr)
-                for asset_name, asset_obj in asset_data.items():
-                    line_width = len('{0}{1}'.format(asset_name, asset_obj.balance))
-                    fill = '.' * (longest_width-line_width+5)
-                    asset_value = Decimal(asset_obj.balance * self.asset_prices[asset_name]).quantize(Decimal(value_prec))
+            print(addr)
+            for asset_name, asset_obj in asset_data.items():
+                line_width = len('{0}{1}'.format(asset_name, asset_obj.balance))
+                fill = '.' * (longest_width-line_width+5)
+                asset_value = Decimal(asset_obj.balance * self.asset_prices[asset_name]).quantize(Decimal(value_prec))
 
-                    print('{0}{1}{2:.{asset_prec}f} = {3:.{val_prec}f}'.format(
-                            asset_name, fill, asset_obj.balance, asset_value,
-                            asset_prec=asset_prec_digits, val_prec=value_prec_digits))
-                print()
+                print('{0}{1}{2:.{asset_prec}f} = {3:.{val_prec}f}'.format(
+                        asset_name, fill, asset_obj.balance, asset_value,
+                        asset_prec=asset_prec_digits, val_prec=value_prec_digits))
+            print()
 
     def print_total_balances(self, asset_prec_digits, value_prec_digits):
         """
-        prints combined asset totals
+        prints combined asset totals from all address asset balances
         """
-        asset_totals = self.get_asset_totals()
-        longest_width = util.longest_kv_length(asset_totals)
+        asset_prec = '1.{0}'.format('0'*asset_prec_digits)
+        value_prec = '1.{0}'.format('0'*value_prec_digits)
 
-        for asset, balance in asset_totals.items():
-            line_width = len('{0}{1}'.format(asset, balance))
+        asset_totals = self.get_asset_totals()
+        fmt_asset_totals = {}
+
+        longest_width = 0
+        for asset_name, balance in asset_totals.items():
+            balance = balance.quantize(Decimal(asset_prec))
+            fmt_asset_totals[asset_name] = balance
+
+            width = len('{0}{1}'.format(asset_name, balance))
+            if width > longest_width:
+                longest_width = width
+
+        for asset_name, balance in fmt_asset_totals.items():
+            line_width = len('{0}{1}'.format(asset_name, balance))
             fill = '.' * (longest_width-line_width+5)
-            print('{0}{1}{2}'.format(asset, fill, balance))
+            asset_value = Decimal(balance * self.asset_prices[asset_name]).quantize(Decimal(value_prec))
+
+            print('{0}{1}{2:.{asset_prec}f} = {3:.{val_prec}f}'.format(
+                    asset_name, fill, balance, asset_value,
+                    asset_prec=asset_prec_digits, val_prec=value_prec_digits))
+
 
 
 
