@@ -20,6 +20,9 @@ def api_call(api_base, api_path, results_queue=None):
     except Exception as e:
         print('Error occurred while requesting {0}'.format(url), e.args)
 
+def chunk_list(lst, chunk_size):
+    return [lst[x : x+chunk_size] for x in range(0, len(lst), chunk_size)]
+
 def json_from_file(file_path):
     """
     returns contents of file at file_path as json
@@ -63,9 +66,6 @@ def longest_kv_length(dictionary):
         if kv_length > longest_len:
             longest_len = kv_length
     return longest_len
-
-def chunk_list(lst, chunk_size):
-    return [lst[x : x+chunk_size] for x in range(0, len(lst), chunk_size)]
 
 def merge_lst(lst, delimeters=['', '']):
     """
