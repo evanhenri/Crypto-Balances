@@ -1,14 +1,11 @@
 from src import util
 from queue import Queue
 from threading import Thread
-
-import decimal
 from decimal import Decimal
-decimal.getcontext().prec = 8
 
 class Asset(object):
     def __init__(self, balance):
-        self.balance = balance
+        self.balance = Decimal(balance)
         self.price = 0
         self.value = 0
 
@@ -47,13 +44,12 @@ class Prices(object):
             elif currency in self.cryptocurrency_ticker_names:
                 return self.cryptocurrency_ticker_names[currency]
             else:
-                return Decimal(1)
+                return Decimal(0)
 
         target, base = target_currency.upper(), base_currency.upper()
         target_price = currency_to_btc(target)
         base_price = currency_to_btc(base)
 
-        # test if Decimal(0) is False
         if all([target_price, base_price]):
             if base != 'BTC':
                 if base in self.cryptocurrency_ticker_symbols or base in self.cryptocurrency_ticker_names:
@@ -61,5 +57,5 @@ class Prices(object):
                 else:
                     target_price *= base_price
             return target_price
-        return 0
+        return Decimal(0)
 
