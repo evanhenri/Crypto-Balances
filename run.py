@@ -26,11 +26,11 @@ def main():
     args = parser.parse_args()
 
     if args.add:
-        config.add_new_addr(args.add[0], args.add[1:])
+        config.add_addr(args.add[0], args.add[1:])
     if args.remove:
-        config.remove_old_addr(args.remove[0], args.remove[1:])
+        config.remove_addr(args.remove[0], args.remove[1:])
     if args.exclude:
-        config.add_to_exlusion_lst(args.exclude)
+        config.add_exclusion(args.exclude)
 
     base_currency = args.base[0]
     min_balance = int(args.minimum[0])
@@ -43,7 +43,7 @@ def main():
 
     P = portfolio.Portfolio(address_dict, address_config, exclusion_lst)
     P.filter_addr_assets(min_balance)
-    P.get_asset_prices(base_currency)
+    P.retrieve_asset_prices(base_currency)
 
     if P.isempty():
         print('No addresses have been added')
@@ -62,5 +62,6 @@ KNOWN BUGS
 TO DO
 
 change config file so that absolute paths to json values can be used
+option to remove an exclusion
 
 """
