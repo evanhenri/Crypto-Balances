@@ -20,9 +20,9 @@ for file_path in app_file_paths:
                 f.write('{}')
             else:
                 pass
-    print('{0} ok'.format(file_path))
+    #print('{0} ok'.format(file_path))
 
-def add_new_addr(addr_type, new_addr_lst):
+def add_addr(addr_type, new_addr_lst):
     """
     updates addresses from file to include new addresses of addr_type after verifying the address as valid
     """
@@ -48,7 +48,16 @@ def add_new_addr(addr_type, new_addr_lst):
     addr_data[addr_type] = addr_lst
     util.json_to_file(address_file, addr_data)
 
-def remove_old_addr(addr_type, rm_addr_lst):
+def add_exclusion(asset_lst):
+    exlusion_lst = [i.upper() for i in util.list_from_file(exclusions_file)]
+    for asset in asset_lst:
+        asset = asset.upper()
+        if asset not in exlusion_lst:
+            exlusion_lst.append(asset)
+    with open(exclusions_file, 'w') as f:
+        [f.write(e + '\n') for e in exlusion_lst]
+
+def remove_addr(addr_type, rm_addr_lst):
     """
     updates addresses from file so addresses in rm_addr_lst are removed if they are present
     """
@@ -60,12 +69,3 @@ def remove_old_addr(addr_type, rm_addr_lst):
     addr_lst = list(filter(lambda x: x not in rm_addr_lst, addr_data[addr_type]))
     addr_data[addr_type] = addr_lst
     util.json_to_file(address_file, addr_data)
-
-def add_to_exlusion_lst(asset_lst):
-    exlusion_lst = [i.upper() for i in util.list_from_file(exclusions_file)]
-    for asset in asset_lst:
-        asset = asset.upper()
-        if asset not in exlusion_lst:
-            exlusion_lst.append(asset)
-    with open(exclusions_file, 'w') as f:
-        [f.write(e + '\n') for e in exlusion_lst]
