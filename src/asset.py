@@ -11,6 +11,10 @@ class Asset(object):
 
 class Prices(object):
     def __init__(self):
+        """
+        retrieves cryptocurrency and fiat prices denominated in BTC and separated them into approprate
+        dictionaries for fast lookup when Prices.get() is called
+        """
         self.cryptocurrency_ticker_symbols = {}
         self.cryptocurrency_ticker_names = {}
         self.fiat_ticker_symbols = {}
@@ -36,6 +40,9 @@ class Prices(object):
                         self.fiat_ticker_symbols[ticker['currency']] = Decimal(btc_price)
 
     def get(self, target_currency, base_currency):
+        """
+        returns the current price of target_currency denominated in base_currency
+        """
         def currency_to_btc(currency):
             if currency in self.cryptocurrency_ticker_symbols:
                 return self.cryptocurrency_ticker_symbols[currency]
