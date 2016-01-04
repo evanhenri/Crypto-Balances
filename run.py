@@ -18,11 +18,11 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('-a', '--add', nargs='+', action=min_args(2), help='Add addresses for the given type')
     parser.add_argument('-r', '--remove', nargs='+', action=min_args(2), help='Remove addresses for the given type')
-    parser.add_argument('-i', '--individual', action='store_true', help='Print individual address balances instead of totals')
+    parser.add_argument('-i', '--itemized', action='store_true', help='Print itemized address balances instead of totals')
     parser.add_argument('-e', '--exclude', nargs='+', help='Exclude the listed assets from inclusion in final balances')
     parser.add_argument('-b', '--base', nargs=1, default=['btc'], help='Base currency for asset values')
     parser.add_argument('-m', '--minimum', nargs=1, default=[0], help='Minimum balance for displayed asset balances')
-    parser.add_argument('-p', '--precision', nargs=1, default=[8], help='Number of digits beyond decimal point to be shown')
+    parser.add_argument('-p', '--precision', nargs=2, default=[8, 8], help='Asset quantity and asset value precision')
     args = parser.parse_args()
 
     if args.add:
@@ -31,9 +31,11 @@ def main():
         config.remove_old_addr(args.remove[0], args.remove[1:])
     if args.exclude:
         config.add_to_exlusion_lst(args.exclude)
+
     base_currency = args.base[0]
-    min_balance = args.minimum[0]
-    precision = args.precision[0]
+    min_balance = int(args.minimum[0])
+    asset_precision = int(args.precision[0])
+    value_precision = int(args.precision[1])
 
     address_dict = util.json_from_file(config.address_file)
     address_config = util.json_from_file(config.address_config_file)
@@ -45,10 +47,10 @@ def main():
 
     if P.isempty():
         print('No addresses have been added')
-    elif args.individual:
-        P.print_address_balances(min_balance, precision) # remove min balance as arg since assets already filtered in line 43
+    elif args.itemized:
+        P.print_address_balances(asset_precision, value_precision)
     else:
-        P.print_total_balances(min_balance, precision)
+        P.print_total_balances(asset_precision, value_precision)
 
 if __name__ == '__main__':
     main()
@@ -58,8 +60,6 @@ if __name__ == '__main__':
 KNOWN BUGS
 
 TO DO
-add functionality to get exchange value for each asset with option to denominate that value in the currency specified
-by the user
 
 change config file so that absolute paths to json values can be used
 
