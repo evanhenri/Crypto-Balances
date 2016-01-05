@@ -57,7 +57,7 @@ def main(argv):
         P.print_total_balances(8, base_precision)
 
 if __name__ == '__main__':
-    args = docopt(__doc__, version='Crypto-Balances 1.0')
+    args = docopt(__doc__, version='Crypto-Balances v1.0.0')
     main(args)
 
 # """
