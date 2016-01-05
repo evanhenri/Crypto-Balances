@@ -23,16 +23,16 @@ class Family(object):
         return self.family
 
 class Portfolio(object):
-    def __init__(self, address_data, address_config, exclusion_lst=[]):
+    def __init__(self, addr_data, addr_config, excluded_assets=[]):
         self.addr_families = []
         self.addr_assets = {}
         self.filtered_addr_assets = {}
-        self.exclusion_lst = [i.upper() for i in exclusion_lst]
+        self.excluded_assets = [i.upper() for i in excluded_assets]
         self.unique_assets = set()
         self.asset_prices = {}
 
-        for addr_type, addr_lst in address_data.items():
-            F = Family(addr_type, address_config)
+        for addr_type, addr_lst in addr_data.items():
+            F = Family(addr_type, addr_config)
             for addr in addr_lst:
                 # initialize empty dict which will be filled with {asset_name:asset_obj,}
                 self.addr_assets[addr] = {}
@@ -53,16 +53,17 @@ class Portfolio(object):
         fills self.filtered_addr_assets with {address:{asset_name:asset_obj, }, }
             if assets not in exclusion list, asset balance > 0, and if address has associated assets after filtering
         """
+        min_balance = int(min_balance)
         filtered_addr_assets = {}
-        for address, asset_data in self.addr_assets.items():
-            filtered_addr_assets[address] = {}
+        for addr, asset_data in self.addr_assets.items():
+            filtered_addr_assets[addr] = {}
             for asset_name, asset_obj in asset_data.items():
-                if asset_name not in self.exclusion_lst and asset_obj.balance > min_balance:
-                    filtered_addr_assets[address][asset_name] = asset_obj
+                if asset_name not in self.excluded_assets and asset_obj.balance > min_balance:
+                    filtered_addr_assets[addr][asset_name] = asset_obj
                     self.unique_assets.add(asset_name)
-        for address, asset_data in filtered_addr_assets.items():
-            if len(filtered_addr_assets[address]) > 0:
-                self.filtered_addr_assets[address] = asset_data
+        for addr, asset_data in filtered_addr_assets.items():
+            if len(filtered_addr_assets[addr]) > 0:
+                self.filtered_addr_assets[addr] = asset_data
 
     def get_asset_totals(self):
         """
@@ -170,6 +171,7 @@ class Portfolio(object):
         """
         prints itemized asset balances for each address
         """
+        value_prec_digits = int(value_prec_digits)
         asset_prec = '1.{0}'.format('0'*asset_prec_digits)
         value_prec = '1.{0}'.format('0'*value_prec_digits)
 
@@ -201,6 +203,7 @@ class Portfolio(object):
         """
         prints combined asset totals from all address asset balances
         """
+        value_prec_digits = int(value_prec_digits)
         asset_prec = '1.{0}'.format('0'*asset_prec_digits)
         value_prec = '1.{0}'.format('0'*value_prec_digits)
 
