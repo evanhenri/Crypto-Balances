@@ -1,7 +1,10 @@
-*.json
 *.pyc
 .idea/
 
-!.gitignore
+src/test.py
+
+*.json
 !address_config.json
 !src/addresses.json
+
+!.gitignore
