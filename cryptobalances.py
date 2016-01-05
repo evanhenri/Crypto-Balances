@@ -63,11 +63,9 @@ if __name__ == '__main__':
 # """
 #
 # KNOWN BUGS
-# add/remove addr not working correctly
+# --
 #
 # TO DO
-#
-# update README
 # change config file so that absolute paths to json values can be used
 #
 # """
