@@ -1,6 +1,4 @@
 import os
-from queue import Queue
-from threading import Thread
 
 from src import util
 
@@ -29,26 +27,29 @@ def add_address(addr_type, addr_lst=[]):
     addr_type = addr_type.upper()
     type_data = util.json_from_file(addr_config_file)
     addr_data = util.json_from_file(addr_data_file)
-    api_base = type_data[addr_type]['API']
 
-    addr_lst = []
     if addr_type in addr_data:
-        addr_lst = addr_data[addr_type]
+        [addr_data[addr_type].append(addr) for addr in addr_lst]
 
-    q = Queue()
-    threads = []
-    for addr in addr_lst:
-        if addr not in addr_lst:
-            threads.append(Thread(target=util.api_call, args=(api_base, addr, q)))
-            threads[-1].start()
-    [t.join() for t in threads]
-    while not q.empty():
-        addr_lst.append(q.get())
+    else:
+        # settings template for new address type
+        type_data[addr_type] = {'API':'',
+                                'DATA_KEY':[''],
+                                'ID_KEY':[''],
+                                'BALANCE_KEY':[''],
+                                'MULTI_ASSET_FLAG':False,
+                                'MULTI_REQUEST_FLAG_MAX':[False, 0],
+                                'MULTIPLIER':1}
+        addr_data[addr_type] = [addr for addr in addr_lst]
+        util.json_to_file(addr_config_file, type_data)
+        print('Update address type params for {0} addresses at\n{1}'.format(addr_type, addr_config_file))
 
-    addr_data[addr_type] = addr_lst
     util.json_to_file(addr_data_file, addr_data)
 
 def add_exclusion(asset_lst=[]):
+    """
+    Adds each asset in asset_lst to current exclusions
+    """
     exlusion_lst = [i.upper() for i in util.list_from_file(excluded_assets_file)]
     for asset in asset_lst:
         asset = asset.upper()
@@ -58,12 +59,18 @@ def add_exclusion(asset_lst=[]):
         [f.write(e + '\n') for e in exlusion_lst]
 
 def display_addresses():
+    """
+    Prints all assets for each address
+    """
     addr_data = util.json_from_file(addr_data_file)
     for addr_type, addr_lst in addr_data.items():
         print(addr_type)
         [print('   {0}'.format(addr)) for addr in addr_lst]
 
 def display_exclusions():
+    """
+    Prints all excluded assets
+    """
     exclusion_lst = util.list_from_file(excluded_assets_file)
     [print('   {0}'.format(e)) for e in exclusion_lst]
 
@@ -76,11 +83,13 @@ def remove_address(addr_type, addr_lst=[]):
     if addr_type not in addr_data:
         print('No addresses with type {0} found'.format(addr_type))
         return
-    addr_lst = list(filter(lambda x: x not in addr_lst, addr_data[addr_type]))
-    addr_data[addr_type] = addr_lst
+    addr_data[addr_type] = [addr for addr in addr_data[addr_type] if addr not in addr_lst]
     util.json_to_file(addr_data_file, addr_data)
 
 def remove_exclusion(asset_lst=[]):
+    """
+    Removes all assets in asset_lst from current exclusions list
+    """
     asset_lst = [asset.upper() for asset in asset_lst]
     old_exclusion_lst = util.list_from_file(excluded_assets_file)
     new_exclusion_lst = list(set(old_exclusion_lst) - set(asset_lst))
