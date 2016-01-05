@@ -2,9 +2,12 @@ import inspect
 import json
 import requests
 from queue import Queue
+import collections
 
 __all__ = ['api_call', 'api_test_call', 'json_from_file', 'json_to_file', 'json_value_by_key',
            'list_from_file', 'make_list_chunks', 'merge_lst', 'rev_eval', 'same_char_str']
+
+ApiResponse = collections.namedtuple('ApiResponse', ['api_path', 'json_response'])
 
 def api_call(api_base, api_path, results_queue=None):
     """
@@ -13,11 +16,13 @@ def api_call(api_base, api_path, results_queue=None):
     """
     url = api_base + api_path
     try:
-        resp = requests.get(url).text
+        raw_resp = requests.get(url).text
         if results_queue and isinstance(results_queue, Queue):
-            results_queue.put([api_path, json.loads(resp)])
+            resp = ApiResponse(api_path, json.loads(raw_resp))
+            results_queue.put(resp)
+            #results_queue.put([api_path, json.loads(raw_resp)])
         else:
-            return json.loads(resp)
+            return json.loads(raw_resp)
     except Exception as e:
         print('Error occurred while requesting {0}'.format(url), e.args)
 
