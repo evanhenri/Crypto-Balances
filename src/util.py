@@ -8,7 +8,8 @@ __all__ = ['api_call', 'api_test_call', 'json_from_file', 'json_to_file', 'json_
 
 def api_call(api_base, api_path, results_queue=None):
     """
-    puts json response from api request to api_base + addr into results queue
+    If results_queue provided, json response from api call to api_base + api_path put into results_queue
+    otherwise the json response is returned
     """
     url = api_base + api_path
     try:
@@ -21,18 +22,21 @@ def api_call(api_base, api_path, results_queue=None):
         print('Error occurred while requesting {0}'.format(url), e.args)
 
 def chunk_list(lst, chunk_size):
+    """
+    Returns a list of sub lists where each sublist is at most chunk_size in length
+    """
     return [lst[x : x+chunk_size] for x in range(0, len(lst), chunk_size)]
 
 def json_from_file(file_path):
     """
-    returns contents of file at file_path as json
+    Returns contents of file at file_path as json
     """
     with open(file_path, 'r') as f:
         return json.load(f)
 
 def json_to_file(file_path, content):
     """
-    writes the contents of file at file_path with content
+    Writes the contents of file at file_path with content
     """
     with open(file_path, 'w') as f:
         payload = json.dumps(content, indent=4, sort_keys=True)
@@ -49,7 +53,7 @@ def json_value_by_key(json_obj, key_lst=[]):
 
 def list_from_file(file_path):
     """
-    returns a list where each element is the content of a single line in file at file_path
+    Returns a list where each element is the content of a single line in file at file_path
     """
     lst = []
     with open(file_path, 'r') as f:
@@ -59,7 +63,17 @@ def list_from_file(file_path):
                 lst.append(stripped_line)
     return lst
 
+def list_to_file(file_path, lst=[]):
+    """
+    Writes the contents of lst to file_path where each lst element is writen to its own line
+    """
+    with open(file_path, 'w') as f:
+        [f.write('{0}\n'.format(i)) for i in lst]
+
 def longest_kv_length(dictionary):
+    """
+    Returns the length of the longest string representation of each {key:value} pair in dictionary
+    """
     longest_len = 0
     for k,v in dictionary.items():
         kv_length = len('{0}{1}'.format(k,v))
@@ -76,12 +90,12 @@ def merge_lst(lst, delimeters=['', '']):
         lst_str += delimeters[0] + element + delimeters[1]
     return lst_str
 
-def rev_eval(var):
+def rev_eval(variable):
     """
-    Returns variable name of var as string
+    Returns string representation of variable name
     """
     callers_local_vars = inspect.currentframe().f_back.f_locals.items()
-    return [k for k,v in callers_local_vars if v is var][0]
+    return [k for k,v in callers_local_vars if v is variable][0]
 
 def same_char_str(str_obj, char_obj=None, exclusion_lst=[]):
     """
