@@ -3,27 +3,31 @@ Command line tool to display multiple cryptocurrency balances for specified addr
 
 ## Examples
 ```
+# Add/remove single address by type
+cryptobalances.py address --add btc 3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v
+cryptobalances.py address --remove btc 3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v
 
-# Add single address by type
-python cryptobalances.py -a btc 3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v
-python cryptobalances.py -a xcp 1Co1dcFX6u1wQ8cW8mnj1DEgW7xQMEaChD
+# Add/remove multiple addresses by type
+cryptobalances.py address --add btc 3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v 3Kg7Cmooris7cLErTsijq6qR1FH3cTiK2G
+cryptobalances.py address --remove btc 3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v 3Kg7Cmooris7cLErTsijq6qR1FH3cTiK2G
 
-# Remove single address by type
-python cryptobalances.py -r btc 3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v
-python cryptobalances.py -r xcp 1Co1dcFX6u1wQ8cW8mnj1DEgW7xQMEaChD
+# Add/remove assets from exclusion list (prevents them from being included in balances)
+cryptobalances.py exclusion --add ZEROVALUECOIN
+cryptobalances.py exclusion --remove ZEROVALUECOIN
 
-# Add multiple addresses by type
-python cryptobalances.py -a btc 3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v 3Kg7Cmooris7cLErTsijq6qR1FH3cTiK2G
-python cryptobalances.py -a xcp 1Co1dcFX6u1wQ8cW8mnj1DEgW7xQMEaChD 1EjnVKygHrwvzdZdEQYnTKKH6yjeVbDEuZ
+# Add/remove multiple assets from exclusion list
+cryptobalances.py exclusion --add ZEROVALUECOIN SPAMCOIN
+cryptobalances.py exclusion --remove ZEROVALUECOIN SPAMCOIN
 
-# Remove multiple addresses by type
-python cryptobalances.py -a btc 3Nxwenay9Z8Lc9JBiywExpnEFiLp6Afp8v 3Kg7Cmooris7cLErTsijq6qR1FH3cTiK2G
-python cryptobalances.py -a xcp 1Co1dcFX6u1wQ8cW8mnj1DEgW7xQMEaChD 1EjnVKygHrwvzdZdEQYnTKKH6yjeVbDEuZ
+# Display itemized balances for each address asset
+cryptobalances.py --itemize
 
-# Print asset balances for each address individually
-python cryptobalances.py -i
+# Change base denomination used to display asset values
+cryptobalances.py base USD
 
-# Add assets to exclusion file so they are not included in final balances
-python cryptobalances.py -e exclusion1 exclusion2 etc
+# Display currently added addresses for each address type
+cryptobalances.py address
 
+# Display currently excluded assets
+cryptobalances.py exclusion
 ```
